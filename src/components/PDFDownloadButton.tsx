@@ -19,7 +19,7 @@ export default function PDFDownloadButton({ invoice }: { invoice: Invoice }) {
           // localStorage may be unavailable (private mode, quota) — don't block the download
         }
       }}
-      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-black text-white text-sm hover:bg-neutral-800 transition-colors"
+      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--cream-0)] text-[var(--ink)] text-sm font-medium hover:bg-white transition-colors"
     >
       {({ loading }) =>
         loading ? (

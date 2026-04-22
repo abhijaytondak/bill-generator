@@ -92,27 +92,27 @@ export function VendorPicker({ category, selectedId, onSelect, suggestedName }: 
   }, [filtered, suggestion, category, selectedId, onSelect]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-xs uppercase tracking-wider text-neutral-500 font-medium">
-          Vendor ({CATEGORY_LABELS[category]})
+        <label className="input-label">
+          Vendor · {CATEGORY_LABELS[category]}
         </label>
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="inline-flex items-center gap-1 text-xs text-neutral-700 hover:text-black"
+          className="inline-flex items-center gap-1 text-xs text-[var(--ink)] font-medium hover:opacity-70"
         >
           <Plus className="w-3 h-3" /> New vendor
         </button>
       </div>
 
       {filtered.length === 0 && !adding ? (
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500">
+        <div className="rounded-xl border border-dashed border-[rgba(11,15,30,0.18)] bg-[var(--cream-1)] p-5 text-center text-sm text-[var(--ink-muted)]">
           No saved vendors for this category yet.
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="ml-1 text-black underline hover:opacity-80"
+            className="ml-1 text-[var(--ink)] font-medium underline underline-offset-2 hover:opacity-70"
           >
             Add one
           </button>
@@ -121,31 +121,35 @@ export function VendorPicker({ category, selectedId, onSelect, suggestedName }: 
       ) : null}
 
       {filtered.length > 0 ? (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {filtered.map((v) => (
             <label
               key={v.id}
-              className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer transition-colors
-                ${selectedId === v.id ? "border-black bg-neutral-50" : "border-neutral-200 hover:border-neutral-400"}`}
+              className={`flex items-start gap-3 border rounded-xl p-3.5 cursor-pointer transition-all
+                ${
+                  selectedId === v.id
+                    ? "border-[var(--ink)] bg-[var(--cream-1)]"
+                    : "border-[rgba(11,15,30,0.08)] bg-white/60 hover:border-[rgba(11,15,30,0.25)]"
+                }`}
             >
               <input
                 type="radio"
                 name="vendor"
                 checked={selectedId === v.id}
                 onChange={() => onSelect(v)}
-                className="mt-1 accent-black"
+                className="mt-1 accent-[var(--ink)]"
               />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Building2 className="w-3.5 h-3.5 text-[var(--ink-muted)] shrink-0" />
                   <span className="font-medium text-sm truncate">{v.name}</span>
                   {matchedId === v.id ? (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider text-neutral-700 bg-yellow-100 border border-yellow-300 px-1.5 py-0.5 rounded">
+                    <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider text-[var(--ink)] bg-[var(--mint)] px-1.5 py-0.5 rounded-full">
                       <Sparkles className="w-2.5 h-2.5" /> Suggested
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-0.5 text-xs text-neutral-500 truncate">
+                <div className="mt-1 text-xs text-[var(--ink-muted)] truncate">
                   {v.gstin ? `GSTIN: ${v.gstin}` : "Unregistered under GST"}
                   {v.city ? ` · ${v.city}` : ""}
                 </div>
@@ -160,7 +164,7 @@ export function VendorPicker({ category, selectedId, onSelect, suggestedName }: 
                     if (selectedId === v.id) onSelect(null);
                   }
                 }}
-                className="p-1 rounded hover:bg-neutral-200 text-neutral-400 hover:text-red-600"
+                className="p-1 rounded-md hover:bg-[rgba(180,84,58,0.12)] text-[var(--ink-faint)] hover:text-[var(--rust)]"
                 title="Delete vendor"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -242,9 +246,9 @@ function NewVendorForm({
   };
 
   return (
-    <div className="rounded-lg border border-neutral-300 p-4 space-y-3 bg-white">
-      <div className="text-sm font-medium">Add new vendor</div>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="rounded-xl border border-[rgba(11,15,30,0.12)] p-5 space-y-3 bg-[var(--cream-1)]">
+      <div className="text-sm font-semibold">Add new vendor</div>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Vendor name *" value={name} onChange={setName} placeholder="e.g. The Daily Cafe" />
         <Field label="Phone" value={phone} onChange={setPhone} placeholder="Optional" />
         <Field
@@ -268,19 +272,19 @@ function NewVendorForm({
         <Field label="Pincode" value={pincode} onChange={setPincode} />
         <Field label="HSN/SAC code" value={hsn} onChange={setHsn} placeholder="Auto if blank" />
       </div>
-      {error ? <div className="text-xs text-red-600">{error}</div> : null}
+      {error ? <div className="text-xs text-[var(--rust)]">{error}</div> : null}
       <div className="flex justify-end gap-2 pt-1">
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1.5 text-sm rounded-md border border-neutral-300 hover:bg-neutral-100"
+          className="btn-ghost !py-2 !px-3.5 text-sm"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={submit}
-          className="px-3 py-1.5 text-sm rounded-md bg-black text-white hover:bg-neutral-800"
+          className="btn-ink !py-2 !px-3.5 text-sm"
         >
           Save vendor
         </button>
@@ -308,17 +312,16 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="text-xs text-neutral-600 font-medium">{label}</label>
+      <label className="input-label">{label}</label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`mt-1 w-full rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-black
-          ${invalid ? "border-red-500" : "border-neutral-300"}`}
+        className={`input mt-1.5 ${invalid ? "!border-[var(--rust)]" : ""}`}
       />
       {hint ? (
-        <div className={`mt-1 text-[11px] ${invalid ? "text-red-600" : "text-neutral-500"}`}>
+        <div className={`mt-1 text-[11px] ${invalid ? "text-[var(--rust)]" : "text-[var(--ink-muted)]"}`}>
           {hint}
         </div>
       ) : null}

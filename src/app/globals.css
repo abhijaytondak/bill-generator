@@ -1,21 +1,78 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
-  --foreground: #171717;
+  /* Cream editorial palette — from Dribbble shots 03, 09, 11 */
+  --cream-0: #F4F1EA;       /* page base */
+  --cream-1: #EBE6DB;       /* raised surface */
+  --cream-2: #DED5C4;       /* borders, dividers */
+  --cream-3: #C9BFA8;       /* subtle hover */
+
+  /* Ink (primary text + dark accents) */
+  --ink:       #0B0F1E;
+  --ink-soft:  #1E2233;
+  --ink-muted: #5E6478;
+  --ink-faint: #8B92A6;
+
+  /* Pastel bento (shot 09 — Prokta) */
+  --mint:     #D5EBD4;
+  --peach:    #F6D9C0;
+  --lavender: #E0D1F2;
+  --sky:      #CDE2F5;
+
+  /* Accent / state */
+  --emerald:  #2F5F42;      /* success, validated */
+  --rust:     #B4543A;      /* error */
+
+  /* Compat */
+  --background: var(--cream-0);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-cream-0: var(--cream-0);
+  --color-cream-1: var(--cream-1);
+  --color-cream-2: var(--cream-2);
+  --color-cream-3: var(--cream-3);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-mint: var(--mint);
+  --color-peach: var(--peach);
+  --color-lavender: var(--lavender);
+  --color-sky: var(--sky);
+  --color-emerald: var(--emerald);
+  --color-rust: var(--rust);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--cream-0);
+  color: var(--ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  /* Subtle grain via layered radial gradients — no image required */
+  background-image:
+    radial-gradient(1200px 600px at 10% -10%, rgba(205, 226, 245, 0.35), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(246, 217, 192, 0.25), transparent 60%);
+  background-attachment: fixed;
+}
+
+.font-serif-italic {
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-muted);
 }
 
 input[type="text"],
@@ -23,5 +80,97 @@ input[type="number"],
 input[type="date"],
 select,
 textarea {
-  background: #ffffff;
+  background: #FBF9F4;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Floating nav pill — frosted glass over cream */
+.nav-pill {
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(11, 15, 30, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 6px 24px rgba(11, 15, 30, 0.06);
+}
+
+/* Hairline-bordered cream card (shot 07 / 11 pattern, light inverted) */
+.card {
+  background: #FBF9F4;
+  border: 1px solid rgba(11, 15, 30, 0.08);
+  border-radius: 20px;
+}
+
+.card-ink {
+  background: var(--ink);
+  color: var(--cream-0);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+}
+
+/* Pill button — ink filled */
+.btn-ink {
+  background: var(--ink);
+  color: #F4F1EA;
+  border-radius: 9999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.btn-ink:hover {
+  background: var(--ink-soft);
+}
+.btn-ink:disabled {
+  background: var(--cream-3);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+/* Ghost pill button */
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid rgba(11, 15, 30, 0.14);
+  border-radius: 9999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s ease;
+}
+.btn-ghost:hover {
+  background: rgba(11, 15, 30, 0.04);
+}
+
+/* Input style — cream with soft inset focus ring */
+.input {
+  width: 100%;
+  background: #FBF9F4;
+  border: 1px solid rgba(11, 15, 30, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(11, 15, 30, 0.08);
+}
+
+.input-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
