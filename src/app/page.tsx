@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   ArrowLeft,
+  Clock,
   Download,
   FileText,
   Loader2,
@@ -17,7 +19,9 @@ import {
   buildInvoice,
   defaultDescription,
   formatDateDMY,
+  generateInvoiceNo,
 } from "@/lib/invoice";
+import { isValidGSTIN, stateFromGSTIN } from "@/lib/gstin";
 import type { Category, ExtractedData, Vendor } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 
@@ -55,17 +59,21 @@ export default function Home() {
   const [paymentMethod, setPaymentMethod] = useState<string>("UPI");
   const [description, setDescription] = useState<string>("");
   const [customerName, setCustomerName] = useState<string>("");
+  const [customerGstin, setCustomerGstin] = useState<string>("");
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [invoiceNo, setInvoiceNo] = useState<string>("");
 
-  useEffect(() => {
-    setDescription((prev) => {
-      const defaults = Object.values(CATEGORY_LABELS).concat(
-        ["Food & Beverages", "Motor Spirit (Petrol)", "Printed Books / Periodicals", "Telecom / Internet Services"],
-      );
-      if (!prev || defaults.includes(prev)) return defaultDescription(category);
-      return prev;
-    });
-  }, [category]);
+  const changeCategory = (c: Category) => {
+    setCategory(c);
+    const allDefaults = new Set<string>([
+      "Food & Beverages",
+      "Motor Spirit (Petrol)",
+      "Printed Books / Periodicals",
+      "Telecom / Internet Services",
+      ...Object.values(CATEGORY_LABELS),
+    ]);
+    setDescription((prev) => (!prev || allDefaults.has(prev) ? defaultDescription(c) : prev));
+  };
 
   const handleFile = async (f: File) => {
     setFile(f);
@@ -83,6 +91,7 @@ export default function Home() {
       if (data.paymentMethod === "upi") setPaymentMethod("UPI");
       else if (data.paymentMethod === "card") setPaymentMethod("Card");
       setDescription(defaultDescription(category));
+      setInvoiceNo(generateInvoiceNo(data.date ?? new Date().toISOString()));
       setStep("review");
     } catch (e) {
       setOcrError(e instanceof Error ? e.message : "OCR failed");
@@ -103,6 +112,8 @@ export default function Home() {
     setTxnId("");
     setDescription("");
     setSelectedVendor(null);
+    setInvoiceNo("");
+    setCustomerGstin("");
   };
 
   const amountNum = Number(amount);
@@ -110,6 +121,7 @@ export default function Home() {
     if (!selectedVendor) return null;
     if (!amountNum || amountNum <= 0) return null;
     const iso = date ? new Date(date).toISOString() : new Date().toISOString();
+    const gstinTrim = customerGstin.trim().toUpperCase();
     return buildInvoice({
       vendor: selectedVendor,
       category,
@@ -119,8 +131,10 @@ export default function Home() {
       txnRef: txnId || undefined,
       paymentMethod,
       customerName: customerName || undefined,
+      customerGstin: gstinTrim && isValidGSTIN(gstinTrim) ? gstinTrim : undefined,
+      invoiceNo: invoiceNo || undefined,
     });
-  }, [selectedVendor, amountNum, date, category, description, txnId, paymentMethod, customerName]);
+  }, [selectedVendor, amountNum, date, category, description, txnId, paymentMethod, customerName, customerGstin, invoiceNo]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -135,14 +149,22 @@ export default function Home() {
               </div>
             </div>
           </div>
-          {step !== "upload" ? (
-            <button
-              onClick={reset}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/history"
               className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-black"
             >
-              <ArrowLeft className="w-4 h-4" /> Start over
-            </button>
-          ) : null}
+              <Clock className="w-4 h-4" /> History
+            </Link>
+            {step !== "upload" ? (
+              <button
+                onClick={reset}
+                className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-black"
+              >
+                <ArrowLeft className="w-4 h-4" /> Start over
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -239,7 +261,17 @@ export default function Home() {
                     onChange={setCustomerName}
                     placeholder="Optional"
                   />
+                  <LabeledInput
+                    label="Customer GSTIN"
+                    value={customerGstin}
+                    onChange={(v) => setCustomerGstin(v.toUpperCase())}
+                    placeholder="Optional · triggers IGST if inter-state"
+                  />
                 </div>
+                <GstTreatment
+                  vendorGstin={selectedVendor?.gstin}
+                  customerGstin={customerGstin}
+                />
               </section>
 
               <section className="rounded-xl border border-neutral-200 bg-white p-5 space-y-4">
@@ -249,7 +281,7 @@ export default function Home() {
                     <button
                       key={c}
                       type="button"
-                      onClick={() => setCategory(c)}
+                      onClick={() => changeCategory(c)}
                       className={`text-left p-2.5 rounded-lg border text-sm transition-colors
                         ${category === c ? "border-black bg-neutral-50 font-medium" : "border-neutral-200 hover:border-neutral-400"}`}
                     >
@@ -411,6 +443,47 @@ function LabeledSelect({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function GstTreatment({
+  vendorGstin,
+  customerGstin,
+}: {
+  vendorGstin?: string;
+  customerGstin: string;
+}) {
+  const cust = customerGstin.trim().toUpperCase();
+  if (!cust) return null;
+  if (!isValidGSTIN(cust)) {
+    return (
+      <div className="text-[11px] text-red-600">Customer GSTIN format looks wrong.</div>
+    );
+  }
+  const custState = stateFromGSTIN(cust);
+  const vendState = vendorGstin ? stateFromGSTIN(vendorGstin.trim().toUpperCase()) : null;
+  if (!vendState) {
+    return (
+      <div className="text-[11px] text-neutral-500">
+        Customer state: <span className="font-medium">{custState}</span>. Vendor has no GSTIN on file, so CGST+SGST is assumed.
+      </div>
+    );
+  }
+  const interState = custState !== vendState;
+  return (
+    <div
+      className={`text-[11px] ${interState ? "text-blue-700" : "text-neutral-600"}`}
+    >
+      {interState ? (
+        <>
+          Inter-state supply ({vendState} → {custState}). <span className="font-medium">IGST</span> will apply.
+        </>
+      ) : (
+        <>
+          Intra-state supply ({custState}). CGST+SGST will apply.
+        </>
+      )}
     </div>
   );
 }

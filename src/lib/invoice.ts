@@ -1,4 +1,5 @@
 import type { Category, Invoice, LineItem, Vendor } from "./types";
+import { isValidGSTIN, stateFromGSTIN } from "./gstin";
 
 export function gstRatesFor(cat: Category): { cgst: number; sgst: number } {
   switch (cat) {
@@ -31,6 +32,13 @@ export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function stateCode(gstin?: string): string | null {
+  if (!gstin) return null;
+  const g = gstin.trim().toUpperCase();
+  if (!isValidGSTIN(g)) return null;
+  return g.slice(0, 2);
+}
+
 export function buildInvoice(params: {
   vendor: Vendor;
   category: Category;
@@ -41,13 +49,27 @@ export function buildInvoice(params: {
   paymentMethod?: string;
   invoiceNo?: string;
   customerName?: string;
+  customerGstin?: string;
 }): Invoice {
   const { cgst, sgst } = gstRatesFor(params.category);
   const totalRate = cgst + sgst;
   const subtotal = params.totalAmount / (1 + totalRate / 100);
-  const cgstAmount = (subtotal * cgst) / 100;
-  const sgstAmount = (subtotal * sgst) / 100;
   const hsn = params.vendor.hsnCode || defaultHSN(params.category);
+
+  const vendorStateCode = stateCode(params.vendor.gstin);
+  const customerStateCode = stateCode(params.customerGstin);
+  const interState =
+    vendorStateCode !== null &&
+    customerStateCode !== null &&
+    vendorStateCode !== customerStateCode;
+
+  const cgstAmount = interState ? 0 : (subtotal * cgst) / 100;
+  const sgstAmount = interState ? 0 : (subtotal * sgst) / 100;
+  const igstRate = interState ? totalRate : 0;
+  const igstAmount = interState ? (subtotal * totalRate) / 100 : 0;
+  const customerState = params.customerGstin
+    ? stateFromGSTIN(params.customerGstin.trim().toUpperCase()) ?? undefined
+    : undefined;
 
   const items: LineItem[] = [
     {
@@ -66,14 +88,19 @@ export function buildInvoice(params: {
     date: params.date,
     items,
     subtotal: round2(subtotal),
-    cgstRate: cgst,
-    sgstRate: sgst,
+    cgstRate: interState ? 0 : cgst,
+    sgstRate: interState ? 0 : sgst,
     cgstAmount: round2(cgstAmount),
     sgstAmount: round2(sgstAmount),
+    igstRate,
+    igstAmount: round2(igstAmount),
+    interState,
     total: round2(params.totalAmount),
     paymentMethod: params.paymentMethod || "UPI",
     txnRef: params.txnRef,
     customerName: params.customerName,
+    customerGstin: params.customerGstin?.trim().toUpperCase() || undefined,
+    customerState,
   };
 }
 

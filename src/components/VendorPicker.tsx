@@ -1,12 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, Building2 } from "lucide-react";
-import { z } from "zod";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Plus, Trash2, Building2, Sparkles } from "lucide-react";
 import type { Category, Vendor } from "@/lib/types";
-import { CATEGORY_LABELS } from "@/lib/types";
-import { deleteVendor, generateVendorId, getVendors, saveVendor } from "@/lib/vendors";
+import { CATEGORY_LABELS, VendorSchema } from "@/lib/types";
+import {
+  deleteVendor,
+  generateVendorId,
+  getServerVendorsSnapshot,
+  getVendors,
+  saveVendor,
+  subscribeVendors,
+} from "@/lib/vendors";
 import { isValidGSTIN, stateFromGSTIN } from "@/lib/gstin";
+
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/['’`]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const STOPWORDS = new Set(["the", "and", "pvt", "ltd", "llp", "inc", "corp", "co"]);
+
+function tokens(s: string): string[] {
+  return normalizeName(s)
+    .split(" ")
+    .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+}
+
+function findVendorMatch(vendors: Vendor[], suggestion: string): Vendor | null {
+  const target = normalizeName(suggestion);
+  if (target.length < 3) return null;
+  const targetTokens = tokens(suggestion);
+  if (targetTokens.length === 0) return null;
+
+  for (const v of vendors) {
+    if (normalizeName(v.name) === target) return v;
+  }
+  for (const v of vendors) {
+    const cand = normalizeName(v.name);
+    if (cand.length >= target.length && cand.includes(target)) return v;
+    if (target.length >= cand.length && target.includes(cand) && cand.length >= 4) return v;
+  }
+
+  let best: { v: Vendor; score: number } | null = null;
+  for (const v of vendors) {
+    const candTokens = new Set(tokens(v.name));
+    if (candTokens.size === 0) continue;
+    const shared = targetTokens.filter((t) => candTokens.has(t)).length;
+    if (shared === 0) continue;
+    const score = shared / Math.max(targetTokens.length, candTokens.size);
+    if (score > 0.5 && (!best || score > best.score)) best = { v, score };
+  }
+  return best?.v ?? null;
+}
 
 type Props = {
   category: Category;
@@ -16,13 +65,31 @@ type Props = {
 };
 
 export function VendorPicker({ category, selectedId, onSelect, suggestedName }: Props) {
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const allVendors = useSyncExternalStore(
+    subscribeVendors,
+    getVendors,
+    getServerVendorsSnapshot,
+  );
   const [adding, setAdding] = useState(false);
+  const autoMatchAttempted = useRef<string | null>(null);
 
-  const refresh = () => setVendors(getVendors().filter((v) => v.category === category));
-  useEffect(refresh, [category]);
+  const filtered = useMemo(
+    () => allVendors.filter((v) => v.category === category),
+    [allVendors, category],
+  );
 
-  const filtered = vendors;
+  const suggestion = suggestedName?.trim() ?? "";
+  const matchedId = suggestion ? findVendorMatch(filtered, suggestion)?.id ?? null : null;
+
+  useEffect(() => {
+    if (!suggestion) return;
+    if (selectedId) return;
+    const key = `${category}|${suggestion}`;
+    if (autoMatchAttempted.current === key) return;
+    const match = findVendorMatch(filtered, suggestion);
+    autoMatchAttempted.current = key;
+    if (match) onSelect(match);
+  }, [filtered, suggestion, category, selectedId, onSelect]);
 
   return (
     <div className="space-y-2">
@@ -72,6 +139,11 @@ export function VendorPicker({ category, selectedId, onSelect, suggestedName }: 
                 <div className="flex items-center gap-2">
                   <Building2 className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
                   <span className="font-medium text-sm truncate">{v.name}</span>
+                  {matchedId === v.id ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider text-neutral-700 bg-yellow-100 border border-yellow-300 px-1.5 py-0.5 rounded">
+                      <Sparkles className="w-2.5 h-2.5" /> Suggested
+                    </span>
+                  ) : null}
                 </div>
                 <div className="mt-0.5 text-xs text-neutral-500 truncate">
                   {v.gstin ? `GSTIN: ${v.gstin}` : "Unregistered under GST"}
@@ -86,7 +158,6 @@ export function VendorPicker({ category, selectedId, onSelect, suggestedName }: 
                   if (confirm(`Delete vendor "${v.name}"?`)) {
                     deleteVendor(v.id);
                     if (selectedId === v.id) onSelect(null);
-                    refresh();
                   }
                 }}
                 className="p-1 rounded hover:bg-neutral-200 text-neutral-400 hover:text-red-600"
@@ -106,7 +177,6 @@ export function VendorPicker({ category, selectedId, onSelect, suggestedName }: 
           onCancel={() => setAdding(false)}
           onSaved={(v) => {
             setAdding(false);
-            refresh();
             onSelect(v);
           }}
         />
@@ -150,7 +220,7 @@ function NewVendorForm({
       setError("GSTIN format looks wrong. Leave blank if vendor is unregistered.");
       return;
     }
-    const vendor: Vendor = {
+    const candidate = {
       id: generateVendorId(),
       name: name.trim(),
       gstin: gstinTrimmed || undefined,
@@ -163,7 +233,8 @@ function NewVendorForm({
       category,
     };
     try {
-      saveVendor(z.object({}).passthrough().parse(vendor) as Vendor);
+      const vendor = VendorSchema.parse(candidate);
+      saveVendor(vendor);
       onSaved(vendor);
     } catch {
       setError("Could not save vendor.");

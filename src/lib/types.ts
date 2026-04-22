@@ -54,9 +54,14 @@ export const InvoiceSchema = z.object({
   sgstRate: z.number(),
   cgstAmount: z.number(),
   sgstAmount: z.number(),
+  igstRate: z.number(),
+  igstAmount: z.number(),
+  interState: z.boolean(),
   total: z.number(),
   paymentMethod: z.string(),
   txnRef: z.string().optional(),
   customerName: z.string().optional(),
+  customerGstin: z.string().optional(),
+  customerState: z.string().optional(),
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;

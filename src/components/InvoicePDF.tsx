@@ -189,7 +189,7 @@ const s = StyleSheet.create({
 
 export function InvoicePDF({ invoice }: { invoice: Invoice }) {
   const v = invoice.vendor;
-  const taxTotal = invoice.cgstAmount + invoice.sgstAmount;
+  const taxTotal = invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
   const addressLine = [v.address, v.city, v.state, v.pincode].filter(Boolean).join(", ");
 
   return (
@@ -221,12 +221,16 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
                 <Text style={s.metaLabel}>Category:</Text>
                 <Text style={s.metaValue}>{CATEGORY_LABELS[invoice.category]}</Text>
               </View>
-              {v.state ? (
+              {invoice.customerState || v.state ? (
                 <View style={s.metaRow}>
                   <Text style={s.metaLabel}>Place of Supply:</Text>
-                  <Text style={s.metaValue}>{v.state}</Text>
+                  <Text style={s.metaValue}>{invoice.customerState || v.state}</Text>
                 </View>
               ) : null}
+              <View style={s.metaRow}>
+                <Text style={s.metaLabel}>Supply Type:</Text>
+                <Text style={s.metaValue}>{invoice.interState ? "Inter-state" : "Intra-state"}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -236,6 +240,12 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold" }}>
             {invoice.customerName || "Walk-in Customer"}
           </Text>
+          {invoice.customerGstin ? (
+            <Text style={s.vendorLine}>GSTIN: {invoice.customerGstin}</Text>
+          ) : null}
+          {invoice.customerState ? (
+            <Text style={s.vendorLine}>State: {invoice.customerState}</Text>
+          ) : null}
         </View>
 
         <View style={s.table}>
@@ -262,6 +272,12 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
             <Text style={s.totalsLabel}>Sub Total</Text>
             <Text style={s.totalsValue}>Rs. {inrFormat(invoice.subtotal)}</Text>
           </View>
+          {invoice.igstRate > 0 ? (
+            <View style={s.totalsRow}>
+              <Text style={s.totalsLabel}>IGST @ {invoice.igstRate}%</Text>
+              <Text style={s.totalsValue}>Rs. {inrFormat(invoice.igstAmount)}</Text>
+            </View>
+          ) : null}
           {invoice.cgstRate > 0 ? (
             <View style={s.totalsRow}>
               <Text style={s.totalsLabel}>CGST @ {invoice.cgstRate}%</Text>
@@ -274,7 +290,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
               <Text style={s.totalsValue}>Rs. {inrFormat(invoice.sgstAmount)}</Text>
             </View>
           ) : null}
-          {invoice.cgstRate === 0 && invoice.sgstRate === 0 ? (
+          {invoice.cgstRate === 0 && invoice.sgstRate === 0 && invoice.igstRate === 0 ? (
             <View style={s.totalsRow}>
               <Text style={s.totalsLabel}>Tax</Text>
               <Text style={s.totalsValue}>Rs. 0.00</Text>
