@@ -1,17 +1,55 @@
 import { z } from "zod";
 
-export const CategorySchema = z.enum(["meals", "fuel", "books", "telecom", "mixed"]);
+export const CategorySchema = z.enum([
+  "food",
+  "business_travel",
+  "phone_internet",
+  "education",
+  "health_and_fitness",
+  "fuel",
+  "hostel",
+  "drivers_salary",
+  "books",
+  "professional_development",
+  "uniform",
+  "gift",
+  "vehicle_maintenance",
+  "mixed",
+]);
 export type Category = z.infer<typeof CategorySchema>;
 
 export const CATEGORY_LABELS: Record<Category, string> = {
-  meals: "Meals / Food",
+  food: "Food",
+  business_travel: "Business Travel",
+  phone_internet: "Phone / Internet",
+  education: "Education",
+  health_and_fitness: "Health & Fitness",
   fuel: "Fuel",
-  books: "Books & Periodicals",
-  telecom: "Telecom / Internet",
+  hostel: "Hostel",
+  drivers_salary: "Driver's Salary",
+  books: "Books",
+  professional_development: "Professional Development",
+  uniform: "Uniform",
+  gift: "Gift",
+  vehicle_maintenance: "Vehicle Maintenance",
   mixed: "Mixed Expenses",
 };
 
-export const CLAIM_CATEGORIES = ["meals", "fuel", "books", "telecom"] as const;
+export const CLAIM_CATEGORIES = [
+  "food",
+  "business_travel",
+  "phone_internet",
+  "education",
+  "health_and_fitness",
+  "fuel",
+  "hostel",
+  "drivers_salary",
+  "books",
+  "professional_development",
+  "uniform",
+  "gift",
+  "vehicle_maintenance",
+] as const;
 export type ClaimCategory = (typeof CLAIM_CATEGORIES)[number];
 
 export const VendorSchema = z.object({

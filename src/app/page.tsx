@@ -25,6 +25,7 @@ import {
   generateInvoiceNo,
 } from "@/lib/invoice";
 import { isValidGSTIN } from "@/lib/gstin";
+import { approvalWarnings, ruleFor } from "@/lib/categoryRules";
 import type { ClaimCategory, ExtractedData } from "@/lib/types";
 import { CATEGORY_LABELS, CLAIM_CATEGORIES } from "@/lib/types";
 
@@ -324,6 +325,8 @@ function ReviewScreen({
             </div>
           </section>
 
+          <ApprovalReadiness transactions={transactions} />
+
           <section className="card overflow-hidden">
             <div className="px-5 py-4 border-b border-[rgba(11,15,30,0.08)] flex items-center justify-between">
               <div>
@@ -335,12 +338,13 @@ function ReviewScreen({
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-sm">
+              <table className="w-full min-w-[1180px] text-sm">
                 <thead className="bg-[var(--cream-1)] text-[var(--ink-muted)] text-[10px] uppercase tracking-[0.14em]">
                   <tr>
                     <th className="text-left px-3 py-3 font-medium">Proof</th>
                     <th className="text-left px-3 py-3 font-medium">Merchant</th>
                     <th className="text-left px-3 py-3 font-medium">Category</th>
+                    <th className="text-left px-3 py-3 font-medium">Description</th>
                     <th className="text-left px-3 py-3 font-medium">Date</th>
                     <th className="text-left px-3 py-3 font-medium">Time</th>
                     <th className="text-left px-3 py-3 font-medium">Amount</th>
@@ -380,6 +384,10 @@ function ReviewScreen({
                             </option>
                           ))}
                         </select>
+                        <CategoryHint category={tx.category} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input className="input !py-2" value={tx.description} onChange={(e) => updateTx(tx.id, { description: e.target.value })} />
                       </td>
                       <td className="px-3 py-3">
                         <input type="date" className="input !py-2" value={tx.date} onChange={(e) => updateTx(tx.id, { date: e.target.value })} />
@@ -463,7 +471,7 @@ function ReviewScreen({
 }
 
 function makeDraft(file: File): TransactionDraft {
-  const category: ClaimCategory = "meals";
+  const category: ClaimCategory = "food";
   return {
     id: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     fileName: file.name,
@@ -481,7 +489,7 @@ function makeDraft(file: File): TransactionDraft {
 }
 
 function makeManualDraft(): TransactionDraft {
-  const category: ClaimCategory = "meals";
+  const category: ClaimCategory = "food";
   return {
     id: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     fileName: "Manual entry",
@@ -503,6 +511,73 @@ function InfoTile({ icon, title, body }: { icon: React.ReactNode; title: string;
       <div className="w-8 h-8 rounded-full bg-[var(--sky)] flex items-center justify-center text-[var(--ink)]">{icon}</div>
       <div className="mt-3 text-sm font-semibold text-[var(--ink)]">{title}</div>
       <div className="mt-1 text-xs leading-relaxed">{body}</div>
+    </div>
+  );
+}
+
+function ApprovalReadiness({ transactions }: { transactions: TransactionDraft[] }) {
+  const allWarnings = transactions.flatMap((tx) =>
+    approvalWarnings({
+      category: tx.category,
+      merchantName: tx.merchantName,
+      amount: tx.amount,
+      date: tx.date,
+      time: tx.time,
+      txnId: tx.txnId,
+    }).map((warning) => ({ id: tx.id, fileName: tx.fileName, warning })),
+  );
+  const missingCount = allWarnings.filter((item) => item.warning.includes("missing") || item.warning.includes("must")).length;
+
+  return (
+    <section className="card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-sm font-semibold">Approval readiness</div>
+          <div className="text-xs text-[var(--ink-muted)] mt-1">
+            Category rules check required fields and proof expectations. The app never invents line items; use the original bill details.
+          </div>
+        </div>
+        <div className={`rounded-full px-3 py-1 text-xs ${missingCount === 0 ? "bg-[var(--mint)] text-[var(--emerald)]" : "bg-[var(--peach)] text-[var(--rust)]"}`}>
+          {missingCount === 0 ? "Ready to review" : `${missingCount} missing fields`}
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        {CLAIM_CATEGORIES.map((category) => {
+          const rule = ruleFor(category);
+          return (
+            <details key={category} className="rounded-xl bg-[var(--cream-1)] border border-[rgba(11,15,30,0.06)] px-3 py-2">
+              <summary className="cursor-pointer text-xs font-medium text-[var(--ink)]">{rule.label}</summary>
+              <div className="mt-2 text-[11px] text-[var(--ink-muted)] leading-relaxed">
+                Proof: {rule.evidence.join(", ")}.
+              </div>
+              <div className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                Examples: {rule.examples.join(", ")}.
+              </div>
+            </details>
+          );
+        })}
+      </div>
+      {allWarnings.length > 0 ? (
+        <div className="mt-4 rounded-xl border border-[rgba(180,84,58,0.18)] bg-[rgba(246,217,192,0.28)] p-3 space-y-1">
+          {allWarnings.slice(0, 8).map((item, idx) => (
+            <div key={`${item.id}-${idx}`} className="text-[11px] text-[var(--rust)]">
+              {item.fileName}: {item.warning}
+            </div>
+          ))}
+          {allWarnings.length > 8 ? (
+            <div className="text-[11px] text-[var(--ink-muted)]">+{allWarnings.length - 8} more checks</div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function CategoryHint({ category }: { category: ClaimCategory }) {
+  const rule = ruleFor(category);
+  return (
+    <div className="mt-1 text-[10px] text-[var(--ink-muted)] leading-snug">
+      HSN/SAC {rule.hsn} · GST {rule.cgst + rule.sgst}%
     </div>
   );
 }

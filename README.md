@@ -9,7 +9,8 @@ This app is for organizing legitimate reimbursement proofs. Keep the original me
 - Batch upload PNG, JPG, JPEG and WebP screenshots, up to 10MB each.
 - Browser-side OCR with Tesseract.js for merchant, amount, date, time, transaction ID and payment mode.
 - Editable review table before PDF generation.
-- Category-based GST split for meals, fuel, books and telecom.
+- Category-based GST/HSN rules for food, business travel, phone/internet, education, health & fitness, fuel, hostel, driver's salary, books, professional development, uniform, gifts and vehicle maintenance.
+- Approval-readiness guidance that checks required fields and proof expectations without fabricating receipt details.
 - Downloadable PDF expense statement with original transaction references.
 - Local browser history and saved vendor data via `localStorage`.
 - Optional AWS Textract validation endpoint for generated PDFs.
@@ -50,4 +51,5 @@ The validation route accepts PDFs/images up to 10MB and is intended for local or
 - `src/lib/ocr.ts` - Tesseract OCR wrapper.
 - `src/lib/parsers.ts` - text parsers for amount, date, time, merchant and transaction ID.
 - `src/lib/invoice.ts` - GST math, line item calculations and statement construction.
+- `src/lib/categoryRules.ts` - flexi-benefit category rules, evidence checklists and approval warnings.
 - `src/components/InvoicePDF.tsx` - PDF rendering.

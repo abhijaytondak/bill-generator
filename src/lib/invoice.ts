@@ -1,34 +1,21 @@
 import type { Category, ClaimCategory, Invoice, LineItem, Vendor } from "./types";
 import { isValidGSTIN, stateFromGSTIN } from "./gstin";
+import { ruleFor } from "./categoryRules";
 
 export function gstRatesFor(cat: Category): { cgst: number; sgst: number } {
-  switch (cat) {
-    case "meals": return { cgst: 2.5, sgst: 2.5 };
-    case "fuel": return { cgst: 0, sgst: 0 };
-    case "books": return { cgst: 0, sgst: 0 };
-    case "telecom": return { cgst: 9, sgst: 9 };
-    case "mixed": return { cgst: 0, sgst: 0 };
-  }
+  if (cat === "mixed") return { cgst: 0, sgst: 0 };
+  const rule = ruleFor(cat);
+  return { cgst: rule.cgst, sgst: rule.sgst };
 }
 
 export function defaultHSN(cat: Category): string {
-  switch (cat) {
-    case "meals": return "996331";
-    case "fuel": return "27101290";
-    case "books": return "49011010";
-    case "telecom": return "998414";
-    case "mixed": return "EXPENSE";
-  }
+  if (cat === "mixed") return "EXPENSE";
+  return ruleFor(cat).hsn;
 }
 
 export function defaultDescription(cat: Category): string {
-  switch (cat) {
-    case "meals": return "Food & Beverages";
-    case "fuel": return "Motor Spirit (Petrol)";
-    case "books": return "Printed Books / Periodicals";
-    case "telecom": return "Telecom / Internet Services";
-    case "mixed": return "Flexi Benefit Expenses";
-  }
+  if (cat === "mixed") return "Flexi Benefit Expenses";
+  return ruleFor(cat).description;
 }
 
 export function round2(n: number): number {
