@@ -10,6 +10,7 @@ This app is for organizing legitimate reimbursement proofs. Keep the original me
 - Browser-side OCR with Tesseract.js for merchant, amount, date, time, transaction ID and payment mode.
 - Editable review table before PDF generation.
 - Category-based GST/HSN rules for food, business travel, phone/internet, education, health & fitness, fuel, hostel, driver's salary, books, professional development, uniform, gifts and vehicle maintenance.
+- Merchant/platform matching for common providers such as Zomato, Swiggy, Uber, Rapido, Ola, Airtel, Jio, IRCTC and fuel/learning platforms.
 - Approval-readiness guidance that checks required fields and proof expectations without fabricating receipt details.
 - Downloadable PDF expense statement with original transaction references.
 - Local browser history and saved vendor data via `localStorage`.

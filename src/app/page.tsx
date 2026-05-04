@@ -25,7 +25,7 @@ import {
   generateInvoiceNo,
 } from "@/lib/invoice";
 import { isValidGSTIN } from "@/lib/gstin";
-import { approvalWarnings, ruleFor } from "@/lib/categoryRules";
+import { approvalWarnings, inferPlatformFromText, ruleFor } from "@/lib/categoryRules";
 import type { ClaimCategory, ExtractedData } from "@/lib/types";
 import { CATEGORY_LABELS, CLAIM_CATEGORIES } from "@/lib/types";
 
@@ -63,6 +63,7 @@ type TransactionDraft = {
   txnId: string;
   paymentMethod: string;
   description: string;
+  platformName: string;
 };
 
 const paymentMethods = ["UPI", "Card", "Cash", "Net Banking", "Wallet"];
@@ -90,6 +91,7 @@ export default function Home() {
       setOcrProgress(0);
       try {
         const data = await extractFromImage(accepted[i], setOcrProgress);
+        const category = data.suggestedCategory && data.suggestedCategory !== "mixed" ? data.suggestedCategory : undefined;
         setTransactions((prev) =>
           prev.map((tx) =>
             tx.id === drafts[i].id
@@ -97,11 +99,14 @@ export default function Home() {
                   ...tx,
                   status: "ready",
                   extracted: data,
+                  category: category || tx.category,
                   merchantName: data.merchantName || tx.merchantName,
                   amount: data.amount ? String(data.amount) : tx.amount,
                   date: data.date ? isoToDateInput(data.date) : tx.date,
                   time: data.time || tx.time,
                   txnId: data.txnId || tx.txnId,
+                  description: category ? defaultDescription(category) : tx.description,
+                  platformName: data.platformName || tx.platformName,
                   paymentMethod: data.paymentMethod === "card" ? "Card" : data.paymentMethod === "upi" ? "UPI" : tx.paymentMethod,
                 }
               : tx,
@@ -141,7 +146,9 @@ export default function Home() {
         time: tx.time || undefined,
         txnRef: tx.txnId || undefined,
         paymentMethod: tx.paymentMethod,
-        description: tx.description || defaultDescription(tx.category),
+        description: tx.platformName
+          ? `${tx.description || defaultDescription(tx.category)} - ${tx.platformName}`
+          : tx.description || defaultDescription(tx.category),
       })),
     });
   }, [validTransactions, invoiceNo, customerName, customerGstin]);
@@ -287,7 +294,7 @@ function ReviewScreen({
     setTransactions((prev) =>
       prev.map((tx) =>
         tx.id === id
-          ? { ...tx, ...patch, status: tx.status === "error" ? "ready" : patch.status ?? tx.status, error: tx.status === "error" ? undefined : tx.error }
+          ? normalizeTransactionPatch(tx, patch)
           : tx,
       ),
     );
@@ -343,6 +350,7 @@ function ReviewScreen({
                   <tr>
                     <th className="text-left px-3 py-3 font-medium">Proof</th>
                     <th className="text-left px-3 py-3 font-medium">Merchant</th>
+                    <th className="text-left px-3 py-3 font-medium">Platform</th>
                     <th className="text-left px-3 py-3 font-medium">Category</th>
                     <th className="text-left px-3 py-3 font-medium">Description</th>
                     <th className="text-left px-3 py-3 font-medium">Date</th>
@@ -368,6 +376,9 @@ function ReviewScreen({
                       </td>
                       <td className="px-3 py-3">
                         <input className="input !py-2" value={tx.merchantName} onChange={(e) => updateTx(tx.id, { merchantName: e.target.value })} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input className="input !py-2" value={tx.platformName} onChange={(e) => updateTx(tx.id, { platformName: e.target.value })} placeholder="e.g. Zomato" />
                       </td>
                       <td className="px-3 py-3">
                         <select
@@ -485,6 +496,7 @@ function makeDraft(file: File): TransactionDraft {
     txnId: "",
     paymentMethod: "UPI",
     description: defaultDescription(category),
+    platformName: "",
   };
 }
 
@@ -502,7 +514,20 @@ function makeManualDraft(): TransactionDraft {
     txnId: "",
     paymentMethod: "UPI",
     description: defaultDescription(category),
+    platformName: "",
   };
+}
+
+function normalizeTransactionPatch(tx: TransactionDraft, patch: Partial<TransactionDraft>): TransactionDraft {
+  const next = {
+    ...tx,
+    ...patch,
+    status: tx.status === "error" ? "ready" as const : patch.status ?? tx.status,
+    error: tx.status === "error" ? undefined : tx.error,
+  };
+  const platform = inferPlatformFromText(`${next.merchantName} ${next.platformName}`, next.category);
+  if (!next.platformName && platform) next.platformName = platform;
+  return next;
 }
 
 function InfoTile({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
@@ -549,6 +574,9 @@ function ApprovalReadiness({ transactions }: { transactions: TransactionDraft[] 
               <summary className="cursor-pointer text-xs font-medium text-[var(--ink)]">{rule.label}</summary>
               <div className="mt-2 text-[11px] text-[var(--ink-muted)] leading-relaxed">
                 Proof: {rule.evidence.join(", ")}.
+              </div>
+              <div className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                Platforms: {rule.platforms.join(", ")}.
               </div>
               <div className="mt-1 text-[11px] text-[var(--ink-muted)]">
                 Examples: {rule.examples.join(", ")}.

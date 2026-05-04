@@ -69,6 +69,8 @@ export type Vendor = z.infer<typeof VendorSchema>;
 export const ExtractedDataSchema = z.object({
   amount: z.number().nullable(),
   merchantName: z.string().nullable(),
+  suggestedCategory: CategorySchema.nullable().optional(),
+  platformName: z.string().nullable().optional(),
   date: z.string().nullable(),
   time: z.string().nullable().optional(),
   txnId: z.string().nullable(),
