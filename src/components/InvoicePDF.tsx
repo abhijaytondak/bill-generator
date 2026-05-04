@@ -3,7 +3,7 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { Invoice } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
-import { amountInWords, formatDateDMY, inrFormat } from "@/lib/invoice";
+import { amountInWords, formatDateDMY, formatDateTimeDMY, inrFormat } from "@/lib/invoice";
 
 const colors = {
   ink: "#111111",
@@ -117,11 +117,12 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 6,
   },
-  cellDesc: { flex: 4 },
+  cellDesc: { flex: 3.2 },
   cellHSN: { flex: 1, textAlign: "center" },
-  cellQty: { flex: 1, textAlign: "center" },
+  cellQty: { flex: 0.7, textAlign: "center" },
   cellRate: { flex: 1.3, textAlign: "right" },
   cellAmt: { flex: 1.4, textAlign: "right" },
+  cellMeta: { flex: 1.5, textAlign: "left" },
   totalsWrap: {
     alignSelf: "flex-end",
     width: "55%",
@@ -191,30 +192,37 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
   const v = invoice.vendor;
   const taxTotal = invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount;
   const addressLine = [v.address, v.city, v.state, v.pincode].filter(Boolean).join(", ");
+  const isStatement = invoice.sourceType === "expense_statement";
 
   return (
-    <Document title={`Tax Invoice ${invoice.invoiceNo}`}>
+    <Document title={`${isStatement ? "Expense Statement" : "Tax Invoice"} ${invoice.invoiceNo}`}>
       <Page size="A4" style={s.page}>
         <View style={s.header}>
-          <Text style={s.invoiceTitle}>TAX INVOICE</Text>
+          <Text style={s.invoiceTitle}>{isStatement ? "EXPENSE CLAIM STATEMENT" : "TAX INVOICE"}</Text>
           <View style={s.headerRow}>
             <View style={s.vendorBlock}>
               <Text style={s.vendorName}>{v.name}</Text>
-              {addressLine ? <Text style={s.vendorLine}>{addressLine}</Text> : null}
-              {v.phone ? <Text style={s.vendorLine}>Phone: {v.phone}</Text> : null}
-              {v.gstin ? (
-                <Text style={s.gstinLine}>GSTIN: {v.gstin}</Text>
+              {isStatement ? (
+                <Text style={s.vendorLine}>Prepared from uploaded transaction screenshots and receipt OCR.</Text>
               ) : (
-                <Text style={s.vendorLine}>Unregistered under GST</Text>
+                <>
+                  {addressLine ? <Text style={s.vendorLine}>{addressLine}</Text> : null}
+                  {v.phone ? <Text style={s.vendorLine}>Phone: {v.phone}</Text> : null}
+                  {v.gstin ? (
+                    <Text style={s.gstinLine}>GSTIN: {v.gstin}</Text>
+                  ) : (
+                    <Text style={s.vendorLine}>Unregistered under GST</Text>
+                  )}
+                </>
               )}
             </View>
             <View style={s.metaBlock}>
               <View style={s.metaRow}>
-                <Text style={s.metaLabel}>Invoice No:</Text>
+                <Text style={s.metaLabel}>{isStatement ? "Statement No:" : "Invoice No:"}</Text>
                 <Text style={s.metaValue}>{invoice.invoiceNo}</Text>
               </View>
               <View style={s.metaRow}>
-                <Text style={s.metaLabel}>Invoice Date:</Text>
+                <Text style={s.metaLabel}>{isStatement ? "Statement Date:" : "Invoice Date:"}</Text>
                 <Text style={s.metaValue}>{formatDateDMY(invoice.date)}</Text>
               </View>
               <View style={s.metaRow}>
@@ -227,16 +235,18 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
                   <Text style={s.metaValue}>{invoice.customerState || v.state}</Text>
                 </View>
               ) : null}
-              <View style={s.metaRow}>
-                <Text style={s.metaLabel}>Supply Type:</Text>
-                <Text style={s.metaValue}>{invoice.interState ? "Inter-state" : "Intra-state"}</Text>
-              </View>
+              {!isStatement ? (
+                <View style={s.metaRow}>
+                  <Text style={s.metaLabel}>Supply Type:</Text>
+                  <Text style={s.metaValue}>{invoice.interState ? "Inter-state" : "Intra-state"}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
         </View>
 
         <View style={s.billToBlock}>
-          <Text style={s.sectionLabel}>BILL TO</Text>
+          <Text style={s.sectionLabel}>{isStatement ? "CLAIMANT" : "BILL TO"}</Text>
           <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold" }}>
             {invoice.customerName || "Walk-in Customer"}
           </Text>
@@ -251,6 +261,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
         <View style={s.table}>
           <View style={s.th}>
             <Text style={[s.thText, s.cellDesc]}>DESCRIPTION</Text>
+            {isStatement ? <Text style={[s.thText, s.cellMeta]}>MERCHANT / DATE</Text> : null}
             <Text style={[s.thText, s.cellHSN]}>HSN/SAC</Text>
             <Text style={[s.thText, s.cellQty]}>QTY</Text>
             <Text style={[s.thText, s.cellRate]}>RATE</Text>
@@ -258,11 +269,21 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           </View>
           {invoice.items.map((it, i) => (
             <View key={i} style={s.tr}>
-              <Text style={s.cellDesc}>{it.description}</Text>
+              <Text style={s.cellDesc}>
+                {it.description}
+                {it.category ? ` (${CATEGORY_LABELS[it.category]})` : ""}
+              </Text>
+              {isStatement ? (
+                <Text style={s.cellMeta}>
+                  {it.merchantName || "-"}
+                  {it.transactionDate ? `\n${formatDateTimeDMY(it.transactionDate)}` : ""}
+                  {it.txnRef ? `\nRef: ${it.txnRef}` : ""}
+                </Text>
+              ) : null}
               <Text style={s.cellHSN}>{it.hsn || "-"}</Text>
               <Text style={s.cellQty}>{it.quantity}</Text>
               <Text style={s.cellRate}>{inrFormat(it.rate)}</Text>
-              <Text style={s.cellAmt}>{inrFormat(it.amount)}</Text>
+              <Text style={s.cellAmt}>{inrFormat(it.total ?? it.amount)}</Text>
             </View>
           ))}
         </View>
@@ -307,16 +328,19 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
         <View style={s.footer}>
           <View style={s.footerRow}>
             <View style={s.footerBlock}>
-              <Text style={s.footerTitle}>Payment Details</Text>
+              <Text style={s.footerTitle}>{isStatement ? "Claim Notes" : "Payment Details"}</Text>
               <Text style={s.footerLine}>Method: {invoice.paymentMethod}</Text>
               {invoice.txnRef ? (
                 <Text style={s.footerLine}>Reference: {invoice.txnRef}</Text>
               ) : null}
               <Text style={s.footerLine}>Tax total: Rs. {inrFormat(taxTotal)}</Text>
+              {isStatement ? (
+                <Text style={s.footerLine}>Verify against original screenshots before filing with payroll or finance.</Text>
+              ) : null}
             </View>
             <View style={s.signBlock}>
-              <Text style={s.footerLine}>For {v.name}</Text>
-              <Text style={s.signLine}>Authorised Signatory</Text>
+              <Text style={s.footerLine}>For {isStatement ? invoice.customerName || "Claimant" : v.name}</Text>
+              <Text style={s.signLine}>{isStatement ? "Claimant Signature" : "Authorised Signatory"}</Text>
             </View>
           </View>
         </View>

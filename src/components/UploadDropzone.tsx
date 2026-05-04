@@ -3,11 +3,22 @@
 import { useDropzone } from "react-dropzone";
 import { ImageUp, ArrowUpRight } from "lucide-react";
 
-export function UploadDropzone({ onFile }: { onFile: (file: File) => void }) {
+export function UploadDropzone({
+  onFile,
+  onFiles,
+}: {
+  onFile?: (file: File) => void;
+  onFiles?: (files: File[]) => void;
+}) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { "image/*": [".png", ".jpg", ".jpeg", ".webp", ".heic"] },
-    maxFiles: 1,
-    onDrop: (files) => files[0] && onFile(files[0]),
+    accept: { "image/*": [".png", ".jpg", ".jpeg", ".webp"] },
+    maxFiles: onFiles ? 30 : 1,
+    maxSize: 10 * 1024 * 1024,
+    multiple: Boolean(onFiles),
+    onDrop: (files) => {
+      if (onFiles) onFiles(files);
+      else if (files[0]) onFile?.(files[0]);
+    },
   });
 
   return (
@@ -44,7 +55,7 @@ export function UploadDropzone({ onFile }: { onFile: (file: File) => void }) {
               )}
             </div>
             <div className="mt-2 text-sm text-[var(--ink-muted)] max-w-sm">
-              UPI confirmation (GPay, PhonePe, Paytm) or card receipt. PNG, JPG, WebP up to 10MB.
+              UPI confirmation (GPay, PhonePe, Paytm) or card receipt. PNG, JPG, WebP up to 10MB each.
             </div>
           </div>
           <div className="inline-flex items-center gap-1.5 mt-2 text-xs text-[var(--ink)] font-medium">

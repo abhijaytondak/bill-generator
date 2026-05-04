@@ -1,5 +1,5 @@
 import { createWorker } from "tesseract.js";
-import { parseAmount, parseDate, parseMerchant, parseTxnId, detectPaymentMethod } from "./parsers";
+import { parseAmount, parseDate, parseMerchant, parseTime, parseTxnId, detectPaymentMethod } from "./parsers";
 import type { ExtractedData } from "./types";
 
 export async function extractFromImage(
@@ -20,6 +20,7 @@ export async function extractFromImage(
       amount: parseAmount(text),
       merchantName: parseMerchant(text),
       date: parseDate(text) ?? new Date().toISOString(),
+      time: parseTime(text),
       txnId: parseTxnId(text),
       paymentMethod: detectPaymentMethod(text),
       rawText: text,

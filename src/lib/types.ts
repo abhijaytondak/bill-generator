@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CategorySchema = z.enum(["meals", "fuel", "books", "telecom"]);
+export const CategorySchema = z.enum(["meals", "fuel", "books", "telecom", "mixed"]);
 export type Category = z.infer<typeof CategorySchema>;
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -8,7 +8,11 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   fuel: "Fuel",
   books: "Books & Periodicals",
   telecom: "Telecom / Internet",
+  mixed: "Mixed Expenses",
 };
+
+export const CLAIM_CATEGORIES = ["meals", "fuel", "books", "telecom"] as const;
+export type ClaimCategory = (typeof CLAIM_CATEGORIES)[number];
 
 export const VendorSchema = z.object({
   id: z.string(),
@@ -28,6 +32,7 @@ export const ExtractedDataSchema = z.object({
   amount: z.number().nullable(),
   merchantName: z.string().nullable(),
   date: z.string().nullable(),
+  time: z.string().nullable().optional(),
   txnId: z.string().nullable(),
   paymentMethod: z.enum(["upi", "card", "unknown"]).default("unknown"),
   rawText: z.string(),
@@ -37,9 +42,21 @@ export type ExtractedData = z.infer<typeof ExtractedDataSchema>;
 export const LineItemSchema = z.object({
   description: z.string(),
   hsn: z.string().optional(),
+  category: CategorySchema.optional(),
+  merchantName: z.string().optional(),
+  transactionDate: z.string().optional(),
+  txnRef: z.string().optional(),
+  paymentMethod: z.string().optional(),
   quantity: z.number(),
   rate: z.number(),
   amount: z.number(),
+  total: z.number().optional(),
+  cgstRate: z.number().optional(),
+  sgstRate: z.number().optional(),
+  igstRate: z.number().optional(),
+  cgstAmount: z.number().optional(),
+  sgstAmount: z.number().optional(),
+  igstAmount: z.number().optional(),
 });
 export type LineItem = z.infer<typeof LineItemSchema>;
 
@@ -63,5 +80,6 @@ export const InvoiceSchema = z.object({
   customerName: z.string().optional(),
   customerGstin: z.string().optional(),
   customerState: z.string().optional(),
+  sourceType: z.enum(["tax_invoice", "expense_statement"]).default("tax_invoice").optional(),
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;

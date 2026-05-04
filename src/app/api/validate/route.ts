@@ -31,6 +31,9 @@ const EXPECTED_FIELDS = [
   "TAX",
 ];
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
+
 function fieldToJson(f: ExpenseField): ExtractedField {
   return {
     type: f.Type?.Text ?? "UNKNOWN",
@@ -59,6 +62,12 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file");
   if (!(file instanceof Blob)) {
     return NextResponse.json({ ok: false, error: "No file uploaded" }, { status: 400 });
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return NextResponse.json({ ok: false, error: "File is larger than 10MB" }, { status: 413 });
+  }
+  if (file.type && !ALLOWED_TYPES.has(file.type)) {
+    return NextResponse.json({ ok: false, error: "Unsupported file type" }, { status: 415 });
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());

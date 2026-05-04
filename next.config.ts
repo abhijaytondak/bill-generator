@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: "/Users/abhijay/flexi-invoice",
+    root: dirname(fileURLToPath(import.meta.url)),
   },
 };
 

@@ -7,7 +7,8 @@ import { InvoicePDF } from "./InvoicePDF";
 import { saveToHistory } from "@/lib/history";
 
 export default function PDFDownloadButton({ invoice }: { invoice: Invoice }) {
-  const filename = `invoice-${invoice.invoiceNo.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+  const prefix = invoice.sourceType === "expense_statement" ? "expense-statement" : "invoice";
+  const filename = `${prefix}-${invoice.invoiceNo.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
   return (
     <PDFDownloadLink
       document={<InvoicePDF invoice={invoice} />}

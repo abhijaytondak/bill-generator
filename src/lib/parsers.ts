@@ -156,6 +156,23 @@ export function parseDate(text: string): string | null {
   return null;
 }
 
+export function parseTime(text: string): string | null {
+  const meridiem = text.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)\b/i);
+  if (meridiem) {
+    let hour = parseInt(meridiem[1], 10);
+    const minute = parseInt(meridiem[2], 10);
+    const ampm = meridiem[3].toUpperCase();
+    if (hour < 1 || hour > 12 || minute > 59) return null;
+    if (ampm === "PM" && hour < 12) hour += 12;
+    if (ampm === "AM" && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  const clock = text.match(/\b([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?\b/);
+  if (!clock) return null;
+  return `${String(parseInt(clock[1], 10)).padStart(2, "0")}:${clock[2]}`;
+}
+
 export function parseTxnId(text: string): string | null {
   const patterns = [
     /UPI\s*(?:transaction\s*ID|Ref(?:erence)?\s*(?:No|#)?|ID)\s*:?\s*([A-Za-z0-9]{8,30})/i,
