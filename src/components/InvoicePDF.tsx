@@ -186,7 +186,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
         <Text style={[s.center, s.small, s.mb1]}>
           NO REFUND | NO RETURN | NO EXCHANGE
         </Text>
-        <Text style={[s.center, s.small]}>Powered by Flexi Invoice</Text>
+        <Text style={[s.center, s.small, s.bold]}>{headerName}</Text>
 
       </Page>
     </Document>

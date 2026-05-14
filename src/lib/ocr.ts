@@ -42,12 +42,69 @@ async function extractWithClaude(
   }
 }
 
+// ── Image preprocessing for Tesseract ────────────────────────────────────────
+
+// Dark-background screenshots (PhonePe, CRED, Google Pay night mode) confuse
+// Tesseract which expects black-on-white. Invert if the image is mostly dark.
+async function prepareForTesseract(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { URL.revokeObjectURL(url); resolve(file); return; }
+
+        ctx.drawImage(img, 0, 0);
+        const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // Sample every 8th pixel for speed
+        let brightness = 0;
+        let count = 0;
+        for (let i = 0; i < data.length; i += 32) {
+          brightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+          count++;
+        }
+        brightness /= count;
+
+        if (brightness < 100) {
+          // Invert colours so light text on dark → dark text on light
+          const full = ctx.getImageData(0, 0, width, height);
+          for (let i = 0; i < full.data.length; i += 4) {
+            full.data[i]     = 255 - full.data[i];
+            full.data[i + 1] = 255 - full.data[i + 1];
+            full.data[i + 2] = 255 - full.data[i + 2];
+          }
+          ctx.putImageData(full, 0, 0);
+        }
+
+        URL.revokeObjectURL(url);
+        canvas.toBlob(
+          (blob) => resolve(blob ? new File([blob], file.name, { type: "image/png" }) : file),
+          "image/png",
+        );
+      } catch {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      }
+    };
+
+    img.src = url;
+  });
+}
+
 // ── Tesseract fallback ────────────────────────────────────────────────────────
 
 async function extractWithTesseract(
   file: File,
   onProgress?: (pct: number) => void,
 ): Promise<ExtractedData> {
+  const processed = await prepareForTesseract(file);
   const worker = await createWorker("eng", 1, {
     logger: (m) => {
       if (m.status === "recognizing text" && typeof m.progress === "number") {
@@ -56,7 +113,7 @@ async function extractWithTesseract(
     },
   });
   try {
-    const { data } = await worker.recognize(file);
+    const { data } = await worker.recognize(processed);
     const text = data.text || "";
     const suggestedCategory = inferCategoryFromText(text);
     return {
