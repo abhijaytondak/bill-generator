@@ -255,13 +255,21 @@ export async function POST(req: NextRequest) {
   const dateInInvoice = Boolean(date?.trim());
   const dateInOcr = hasOcrText && hasDate(ocrText);
   const datePassed = dateInInvoice;
+  let billDateDetails: string;
+  if (!datePassed) {
+    billDateDetails = "Bill date is missing — add the transaction date";
+  } else if (dateInOcr) {
+    billDateDetails = `Date recorded: ${date} — confirmed in OCR text`;
+  } else if (hasOcrText) {
+    billDateDetails = `Date recorded: ${date} — not found in OCR text, verify date against the original proof`;
+  } else {
+    billDateDetails = `Date recorded: ${date} — no OCR text available to cross-check`;
+  }
   checks.push({
     type: BillValidationType.BILL_DATE,
     tier: VALIDATION_TIERS[BillValidationType.BILL_DATE],
     passed: datePassed,
-    details: datePassed
-      ? `Date recorded: ${date}${dateInOcr ? " (also found in OCR text)" : ""}`
-      : "Bill date is missing — add the transaction date",
+    details: billDateDetails,
   });
 
   // ── TIER 2: BILL_COMPLETENESS ────────────────────────────────────────────────

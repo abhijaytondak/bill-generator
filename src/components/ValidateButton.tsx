@@ -75,15 +75,8 @@ export default function ValidateButton({
     try {
       const blob = await pdf(<InvoicePDF invoice={invoice} />).toBlob();
 
-      // Combine real OCR texts from uploaded screenshots; fall back to invoice line item details
-      const combinedOcrText = rawTexts.filter(Boolean).join("\n\n---\n\n") ||
-        invoice.items
-          .map((item) =>
-            [item.merchantName, item.description, item.txnRef, item.transactionDate]
-              .filter(Boolean)
-              .join(" | "),
-          )
-          .join("\n");
+      // Only use real OCR text from uploaded screenshots — never fabricate from invoice fields
+      const combinedOcrText = rawTexts.filter(Boolean).join("\n\n---\n\n");
 
       const lineItems = invoice.items.map((item) => item.description);
 
