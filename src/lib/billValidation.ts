@@ -45,30 +45,36 @@ export type ValidationCheckResult = {
   data?: DocumentAuthenticityResult | CategoryMatchResult;
 };
 
-export const DOCUMENT_AUTHENTICITY_PROMPT = `You are a document fraud analyst. You will receive the raw OCR text of an uploaded document, its structured parse, and possibly the original image of the document. Determine whether this is a GENUINE bill/invoice/receipt.
+export const DOCUMENT_AUTHENTICITY_PROMPT = `You are a document fraud analyst for an employee expense reimbursement platform in India. You will receive OCR text extracted from an uploaded document (typically a UPI payment screenshot, food delivery receipt, fuel slip, telecom bill, or similar expense proof). Determine whether this is a GENUINE payment proof or bill.
+
+Context: Employees upload screenshots from apps like Zomato, Swiggy, Uber, Ola, PhonePe, Google Pay, Paytm, IRCTC, MakeMyTrip, Airtel, Jio, petrol stations, gyms, etc. A valid proof does NOT need itemized line items — a UPI payment confirmation with merchant name, amount, date, and UTR/reference number is sufficient.
 
 Evaluate these dimensions:
-1. DOCUMENT TYPE - Is this actually a bill/invoice/receipt? (not a bank statement, chat screenshot, menu, random image, or self-created document)
-2. COMPLETENESS - Does it have expected elements of a real bill? (merchant name/address, date, amount, invoice/bill number, items or description of service)
-3. COHERENCE - Do line items, taxes, and totals make arithmetic sense? Are items consistent with the merchant type?
-4. TAMPERING SIGNALS - Any signs of editing? (inconsistent fonts, alignment issues, pixel artifacts, suspiciously round numbers with no tax, missing standard elements that a POS/billing system would always print)
-5. TEMPLATE/FAKE SIGNALS - Does it look like output from a fake bill generator? (generic template, placeholder-like text, no real business identifiers)
-6. VISUAL INTEGRITY (if image provided) - Does the document look like a real printed/digital bill? Check for screenshot-of-screenshot, phone photo of screen showing bill, cropped/stitched images, visible editing artifacts, watermarks from bill generator apps.
+1. DOCUMENT TYPE — Is this a payment confirmation, app receipt, tax invoice, or fuel slip? Or is it something entirely unrelated (chat screenshot, random photo, meme, blank page)?
+2. COMPLETENESS — Does it have the minimum elements for a valid expense proof?
+   - Payment confirmation needs: merchant/payee name, amount, date, transaction reference (UTR/UPI ID/order ID)
+   - Tax invoice needs: merchant name, date, amount, at least one line item or service description
+3. COHERENCE — Is the amount consistent with the merchant type? (₹500 at a petrol pump is plausible; ₹50,000 at a restaurant is suspicious)
+4. TAMPERING SIGNALS — Look for: amount or date that looks edited, mismatched fonts in key fields, suspicious alignment of numbers, round numbers like ₹10000 with no paise where the app always shows paise
+5. TEMPLATE/FAKE SIGNALS — Generic placeholder text, fake bill generator watermarks, obviously copy-pasted layout, missing app UI elements that are always present (like app logo, reference IDs, UPI handles)
+6. VISUAL INTEGRITY (if image provided) — Screenshot-of-screenshot artifacts, phone photographed from a screen, visible editing, watermarks, cropped/stitched content
 
 Return ONLY a JSON object (no markdown, no prose):
 {
   "isGenuineBill": boolean,
   "confidence": number (0.0 to 1.0),
   "documentType": "INVOICE" | "RECEIPT" | "NOT_A_BILL" | "UNCLEAR",
-  "concerns": ["short string describing each concern"]
+  "concerns": ["concise specific concern about THIS document"]
 }
 
 Rules:
-- confidence >= 0.8 with isGenuineBill=true means you are quite sure it is real
-- confidence < 0.5 with isGenuineBill=false means you are quite sure it is fake/irrelevant
-- When uncertain, set confidence between 0.4-0.7 and isGenuineBill=false
-- Be strict: a document missing both merchant identifier AND date is suspicious
-- A document with no line items AND no total amount is NOT a bill`;
+- UPI payment confirmation IS a valid receipt — do not penalize for lack of itemized list
+- confidence >= 0.8 with isGenuineBill=true → you are quite confident it is real
+- confidence < 0.5 with isGenuineBill=false → you are quite confident it is fake/irrelevant
+- confidence 0.5–0.79 → uncertain, set isGenuineBill based on balance of evidence
+- concerns must be specific to what you actually see in the text — do not list generic warnings
+- If no OCR text is provided, set confidence=0.4 and documentType="UNCLEAR"
+- A document with ONLY a merchant name and amount (no date, no reference) is suspicious but not definitively fake`;
 
 export const CATEGORY_MATCH_PROMPT = `You are a bill category validator for an employee tax benefits platform. You will receive a parsed bill (merchant info + line items) and raw OCR text. Your job is to determine whether the bill legitimately belongs to the claimed benefit category.
 

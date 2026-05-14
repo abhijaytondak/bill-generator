@@ -260,6 +260,7 @@ export default function Home() {
             setInvoiceNo={setInvoiceNo}
             invoice={invoice}
             totals={totals}
+            rawTexts={validTransactions.map((tx) => tx.extracted?.rawText ?? "")}
           />
         )}
       </main>
@@ -278,6 +279,7 @@ function ReviewScreen({
   setInvoiceNo,
   invoice,
   totals,
+  rawTexts,
 }: {
   transactions: TransactionDraft[];
   setTransactions: (updater: (prev: TransactionDraft[]) => TransactionDraft[]) => void;
@@ -289,6 +291,7 @@ function ReviewScreen({
   setInvoiceNo: (value: string) => void;
   invoice: ReturnType<typeof buildExpenseStatement> | null;
   totals: { subtotal: number; tax: number; total: number };
+  rawTexts: string[];
 }) {
   const updateTx = (id: string, patch: Partial<TransactionDraft>) => {
     setTransactions((prev) =>
@@ -447,7 +450,7 @@ function ReviewScreen({
             </div>
             {invoice ? (
               <div className="flex items-center gap-2 flex-shrink-0">
-                <ValidateBtn invoice={invoice} />
+                <ValidateBtn invoice={invoice} rawTexts={rawTexts} />
                 <PDFDownload invoice={invoice} />
               </div>
             ) : (

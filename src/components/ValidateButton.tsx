@@ -55,7 +55,13 @@ const CHECK_LABELS: Record<BillValidationType, string> = {
   [BillValidationType.MERCHANT_MATCH]: "Merchant Match",
 };
 
-export default function ValidateButton({ invoice }: { invoice: Invoice }) {
+export default function ValidateButton({
+  invoice,
+  rawTexts = [],
+}: {
+  invoice: Invoice;
+  rawTexts?: string[];
+}) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<FullValidationResult | null>(null);
   const [open, setOpen] = useState(false);
@@ -69,35 +75,52 @@ export default function ValidateButton({ invoice }: { invoice: Invoice }) {
     try {
       const blob = await pdf(<InvoicePDF invoice={invoice} />).toBlob();
 
-      const rawText = invoice.items
-        .map((item) => [item.description, item.merchantName, item.txnRef].filter(Boolean).join(" "))
-        .join("\n");
+      // Combine real OCR texts from uploaded screenshots; fall back to invoice line item details
+      const combinedOcrText = rawTexts.filter(Boolean).join("\n\n---\n\n") ||
+        invoice.items
+          .map((item) =>
+            [item.merchantName, item.description, item.txnRef, item.transactionDate]
+              .filter(Boolean)
+              .join(" | "),
+          )
+          .join("\n");
 
       const lineItems = invoice.items.map((item) => item.description);
 
       const aiForm = new FormData();
       const meta = {
-        ocrText: rawText,
+        ocrText: combinedOcrText,
         category: invoice.category,
         merchantName: invoice.vendor.name,
         amount: String(invoice.total),
         date: invoice.date,
         lineItems,
+        receiptCount: invoice.items.length,
       };
       aiForm.append("meta", JSON.stringify(meta));
 
       const [aiRes, textractRes] = await Promise.allSettled([
-        fetch("/api/validate/ai", { method: "POST", body: aiForm }).then((r) => r.json() as Promise<AiValidateResponse>),
+        fetch("/api/validate/ai", { method: "POST", body: aiForm }).then(
+          (r) => r.json() as Promise<AiValidateResponse>,
+        ),
         (() => {
           const form = new FormData();
           form.append("file", blob, "invoice.pdf");
-          return fetch("/api/validate", { method: "POST", body: form }).then((r) => r.json() as Promise<TextractResponse>);
+          return fetch("/api/validate", { method: "POST", body: form }).then(
+            (r) => r.json() as Promise<TextractResponse>,
+          );
         })(),
       ]);
 
       setResult({
-        ai: aiRes.status === "fulfilled" ? aiRes.value : { checks: [], error: (aiRes.reason as Error)?.message },
-        textract: textractRes.status === "fulfilled" ? textractRes.value : { ok: false, error: (textractRes.reason as Error)?.message },
+        ai:
+          aiRes.status === "fulfilled"
+            ? aiRes.value
+            : { checks: [], error: (aiRes.reason as Error)?.message },
+        textract:
+          textractRes.status === "fulfilled"
+            ? textractRes.value
+            : { ok: false, error: (textractRes.reason as Error)?.message },
       });
     } catch (e) {
       setResult({ ai: { checks: [], error: e instanceof Error ? e.message : "Failed" } });
@@ -131,7 +154,10 @@ export default function ValidateButton({ invoice }: { invoice: Invoice }) {
                 <div className="eyebrow mb-0.5">Bill Validation</div>
                 <div className="font-semibold tracking-tight">Validation results</div>
               </div>
-              <button onClick={() => setOpen(false)} className="text-[var(--ink-muted)] hover:text-[var(--ink)] text-sm px-2">
+              <button
+                onClick={() => setOpen(false)}
+                className="text-[var(--ink-muted)] hover:text-[var(--ink)] text-sm px-2"
+              >
                 Close
               </button>
             </div>
@@ -141,13 +167,25 @@ export default function ValidateButton({ invoice }: { invoice: Invoice }) {
                 <div className="text-center">
                   <Loader2 className="w-6 h-6 mx-auto animate-spin" />
                   <div className="mt-3 text-sm">Running AI validation checks…</div>
+                  <div className="mt-1 text-xs text-[var(--ink-faint)]">
+                    Document authenticity · Category match · {invoice.items.length} receipt
+                    {invoice.items.length !== 1 ? "s" : ""}
+                  </div>
                 </div>
               </div>
             ) : result ? (
               <>
                 <div className="px-6 pt-4 flex gap-2">
-                  <TabButton active={activeTab === "ai"} onClick={() => setActiveTab("ai")} label="AI Checks" />
-                  <TabButton active={activeTab === "textract"} onClick={() => setActiveTab("textract")} label="AWS Textract" />
+                  <TabButton
+                    active={activeTab === "ai"}
+                    onClick={() => setActiveTab("ai")}
+                    label="AI Checks"
+                  />
+                  <TabButton
+                    active={activeTab === "textract"}
+                    onClick={() => setActiveTab("textract")}
+                    label="AWS Textract"
+                  />
                 </div>
                 <div className="flex-1 overflow-auto px-6 py-4">
                   {activeTab === "ai" ? (
@@ -165,7 +203,15 @@ export default function ValidateButton({ invoice }: { invoice: Invoice }) {
   );
 }
 
-function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function TabButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -195,8 +241,9 @@ function AiChecksPanel({ checks }: { checks?: AiValidateResponse }) {
     return acc;
   }, {});
 
-  const allPassed = checks.checks.every((c) => c.passed);
-  const failCount = checks.checks.filter((c) => !c.passed).length;
+  const criticalFails = checks.checks.filter((c) => c.tier === 1 && !c.passed).length;
+  const totalFails = checks.checks.filter((c) => !c.passed).length;
+  const allPassed = totalFails === 0;
 
   return (
     <div className="space-y-4">
@@ -204,12 +251,22 @@ function AiChecksPanel({ checks }: { checks?: AiValidateResponse }) {
         className={`flex items-center gap-2 rounded-xl p-3.5 text-sm ${
           allPassed
             ? "bg-[var(--mint)] text-[var(--emerald)]"
-            : "bg-[var(--peach)] text-[var(--rust)]"
+            : criticalFails > 0
+              ? "bg-[var(--peach)] text-[var(--rust)]"
+              : "bg-amber-50 text-amber-700"
         }`}
       >
-        {allPassed ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <XCircle className="w-5 h-5 flex-shrink-0" />}
+        {allPassed ? (
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+        ) : (
+          <XCircle className="w-5 h-5 flex-shrink-0" />
+        )}
         <span className="font-medium">
-          {allPassed ? "All validation checks passed." : `${failCount} check${failCount > 1 ? "s" : ""} need attention.`}
+          {allPassed
+            ? "All validation checks passed."
+            : criticalFails > 0
+              ? `${criticalFails} critical check${criticalFails > 1 ? "s" : ""} failed — review before submitting.`
+              : `${totalFails} advisory check${totalFails > 1 ? "s" : ""} — review recommended.`}
         </span>
       </div>
 
@@ -241,7 +298,7 @@ function CheckRow({ check }: { check: ValidationCheckResult }) {
     <div>
       <button
         onClick={() => hasDetail && setExpanded((e) => !e)}
-        className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left ${hasDetail ? "cursor-pointer" : ""}`}
+        className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left ${hasDetail ? "cursor-pointer hover:bg-black/[0.02]" : ""}`}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {check.passed ? (
@@ -261,9 +318,9 @@ function CheckRow({ check }: { check: ValidationCheckResult }) {
       </button>
 
       {expanded && hasDetail ? (
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-3 border-t border-[rgba(11,15,30,0.04)]">
           {check.details ? (
-            <p className="text-xs text-[var(--ink-muted)] mb-2">{check.details}</p>
+            <p className="text-xs text-[var(--ink-muted)] mt-2 mb-2">{check.details}</p>
           ) : null}
           {check.data ? (
             check.type === BillValidationType.DOCUMENT_AUTHENTICITY ? (
@@ -280,37 +337,48 @@ function CheckRow({ check }: { check: ValidationCheckResult }) {
 
 function DocumentAuthenticityDetail({ data }: { data: DocumentAuthenticityResult }) {
   const confidencePct = Math.round(data.confidence * 100);
+  const barColor =
+    confidencePct >= 80
+      ? "bg-[var(--emerald)]"
+      : confidencePct >= 50
+        ? "bg-amber-400"
+        : "bg-[var(--rust)]";
+
   return (
-    <div className="space-y-2 text-xs">
-      <div className="flex gap-4">
-        <span className="text-[var(--ink-muted)]">Type</span>
+    <div className="space-y-3 text-xs pt-1">
+      <div className="flex items-center gap-3">
+        <span className="text-[var(--ink-muted)] w-20 flex-shrink-0">Doc type</span>
         <span className="font-medium">{data.documentType}</span>
       </div>
-      <div className="flex gap-4">
-        <span className="text-[var(--ink-muted)]">Confidence</span>
+      <div className="flex items-center gap-3">
+        <span className="text-[var(--ink-muted)] w-20 flex-shrink-0">Confidence</span>
         <div className="flex items-center gap-2">
-          <div className="w-24 h-1.5 rounded-full bg-[var(--cream-2)]">
+          <div className="w-28 h-1.5 rounded-full bg-[var(--cream-2)]">
             <div
-              className={`h-full rounded-full ${confidencePct >= 80 ? "bg-[var(--emerald)]" : confidencePct >= 50 ? "bg-amber-400" : "bg-[var(--rust)]"}`}
+              className={`h-full rounded-full transition-all ${barColor}`}
               style={{ width: `${confidencePct}%` }}
             />
           </div>
-          <span className="tabular font-medium">{confidencePct}%</span>
+          <span className={`tabular font-semibold ${confidencePct >= 80 ? "text-[var(--emerald)]" : confidencePct >= 50 ? "text-amber-600" : "text-[var(--rust)]"}`}>
+            {confidencePct}%
+          </span>
         </div>
       </div>
       {data.concerns.length > 0 ? (
         <div>
-          <div className="text-[var(--ink-muted)] mb-1">Concerns</div>
-          <ul className="space-y-1">
+          <div className="text-[var(--ink-muted)] mb-1.5 font-medium">Concerns</div>
+          <ul className="space-y-1.5">
             {data.concerns.map((c, i) => (
-              <li key={i} className="flex items-start gap-1.5">
+              <li key={i} className="flex items-start gap-1.5 text-[var(--ink-muted)]">
                 <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
                 <span>{c}</span>
               </li>
             ))}
           </ul>
         </div>
-      ) : null}
+      ) : (
+        <div className="text-[var(--emerald)] text-xs">No authenticity concerns found.</div>
+      )}
     </div>
   );
 }
@@ -324,19 +392,20 @@ function CategoryMatchDetail({ data }: { data: CategoryMatchResult }) {
         : "bg-[var(--peach)] text-[var(--rust)]";
 
   return (
-    <div className="space-y-2 text-xs">
-      <div className="flex items-center gap-2">
-        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${badgeStyle}`}>
-          {data.result}
-        </span>
-      </div>
-      <p className="text-[var(--ink-muted)]">{data.reason}</p>
+    <div className="space-y-2.5 text-xs pt-1">
+      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${badgeStyle}`}>
+        {data.result}
+      </span>
+      <p className="text-[var(--ink-muted)] leading-relaxed">{data.reason}</p>
       {data.invalidItems.length > 0 ? (
         <div>
-          <div className="text-[var(--ink-muted)] mb-1">Flagged items</div>
+          <div className="text-[var(--ink-muted)] mb-1.5 font-medium">Flagged items</div>
           <div className="flex flex-wrap gap-1">
             {data.invalidItems.map((item, i) => (
-              <span key={i} className="px-2 py-0.5 rounded-full bg-[var(--peach)] text-[var(--rust)] text-[11px]">
+              <span
+                key={i}
+                className="px-2 py-0.5 rounded-full bg-[var(--peach)] text-[var(--rust)] text-[11px] font-medium"
+              >
                 {item}
               </span>
             ))}
@@ -348,7 +417,8 @@ function CategoryMatchDetail({ data }: { data: CategoryMatchResult }) {
 }
 
 function TextractPanel({ result }: { result?: TextractResponse }) {
-  if (!result) return <div className="text-sm text-[var(--ink-muted)]">AWS Textract not available.</div>;
+  if (!result)
+    return <div className="text-sm text-[var(--ink-muted)]">AWS Textract not available.</div>;
   if (result.error) {
     return (
       <div className="rounded-xl border border-[rgba(180,84,58,0.3)] bg-[rgba(246,217,192,0.4)] p-4 text-sm text-[var(--rust)]">
@@ -361,7 +431,9 @@ function TextractPanel({ result }: { result?: TextractResponse }) {
     <div className="space-y-4 text-sm">
       <div
         className={`flex items-center gap-2 rounded-xl p-3.5 ${
-          result.ok ? "bg-[var(--mint)] text-[var(--emerald)]" : "bg-[var(--peach)] text-[var(--rust)]"
+          result.ok
+            ? "bg-[var(--mint)] text-[var(--emerald)]"
+            : "bg-[var(--peach)] text-[var(--rust)]"
         }`}
       >
         {result.ok ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -374,7 +446,9 @@ function TextractPanel({ result }: { result?: TextractResponse }) {
 
       {result.warnings && result.warnings.length > 0 ? (
         <div className="rounded-xl bg-[var(--peach)] p-3.5 text-[var(--rust)]">
-          {result.warnings.map((w, i) => <div key={i}>{w}</div>)}
+          {result.warnings.map((w, i) => (
+            <div key={i}>{w}</div>
+          ))}
         </div>
       ) : null}
 
@@ -388,7 +462,9 @@ function TextractPanel({ result }: { result?: TextractResponse }) {
                 <div className="text-right">
                   <div className="font-mono text-[13px]">{f.value || "-"}</div>
                   {f.confidence ? (
-                    <div className="text-[10px] text-[var(--ink-faint)]">{f.confidence.toFixed(1)}%</div>
+                    <div className="text-[10px] text-[var(--ink-faint)]">
+                      {f.confidence.toFixed(1)}%
+                    </div>
                   ) : null}
                 </div>
               </div>
