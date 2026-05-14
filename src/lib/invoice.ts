@@ -144,9 +144,10 @@ export function buildExpenseStatement(params: {
   date?: string;
 }): Invoice {
   const now = new Date().toISOString();
+  const primaryMerchant = params.expenses[0]?.merchantName || "";
   const statementVendor: Vendor = {
-    id: "flexi-benefit-claim",
-    name: "Flexi Benefit Expense Claim",
+    id: "expense-claim",
+    name: params.customerName || primaryMerchant || "Expense Claim",
     category: "mixed",
   };
   const items = params.expenses.map(calculateLineItem);

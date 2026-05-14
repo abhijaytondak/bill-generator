@@ -11,7 +11,7 @@ export function parseAmount(text: string): number | null {
     /total\s*(?:amount)?\s*:?\s*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
     // Tesseract sometimes misreads ₹ as R, r, or skips it entirely — match a lone large number
     // preceded by a newline / start-of-line (last resort, highest value wins via max logic)
-    /^([0-9,]{2,8}(?:\.[0-9]{1,2})?)$/m,
+    /^([0-9,]{3,8}(?:\.[0-9]{1,2})?)$/m,
   ];
   let best: number | null = null;
   for (const p of patterns) {

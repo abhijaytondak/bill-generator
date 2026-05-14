@@ -72,16 +72,16 @@ async function prepareForTesseract(file: File): Promise<File> {
         }
         brightness /= count;
 
-        if (brightness < 100) {
-          // Invert colours so light text on dark → dark text on light
-          const full = ctx.getImageData(0, 0, width, height);
-          for (let i = 0; i < full.data.length; i += 4) {
-            full.data[i]     = 255 - full.data[i];
-            full.data[i + 1] = 255 - full.data[i + 1];
-            full.data[i + 2] = 255 - full.data[i + 2];
-          }
-          ctx.putImageData(full, 0, 0);
+        // Grayscale + binary threshold for clean Tesseract input
+        const full = ctx.getImageData(0, 0, width, height);
+        const d = full.data;
+        for (let i = 0; i < d.length; i += 4) {
+          let gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          if (brightness < 100) gray = 255 - gray; // invert dark backgrounds
+          gray = gray > 128 ? 255 : 0;             // hard threshold → pure B&W
+          d[i] = d[i + 1] = d[i + 2] = gray;
         }
+        ctx.putImageData(full, 0, 0);
 
         URL.revokeObjectURL(url);
         canvas.toBlob(
