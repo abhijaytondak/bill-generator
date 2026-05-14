@@ -5,6 +5,13 @@ export function parseAmount(text: string): number | null {
     /INR\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
     /Amount\s*:?\s*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
     /Paid\s+[₹Rs\.]*\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    // UPI transaction success screens
+    /(?:sent|transferred|debited|paid)\s+(?:successfully\s+)?(?:of\s+)?₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    /transaction\s+(?:of\s+)?₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    /total\s*(?:amount)?\s*:?\s*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+    // Tesseract sometimes misreads ₹ as R, r, or skips it entirely — match a lone large number
+    // preceded by a newline / start-of-line (last resort, highest value wins via max logic)
+    /^([0-9,]{2,8}(?:\.[0-9]{1,2})?)$/m,
   ];
   let best: number | null = null;
   for (const p of patterns) {
