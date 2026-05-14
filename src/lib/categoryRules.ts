@@ -11,6 +11,8 @@ export type CategoryRule = {
   evidence: string[];
   warnings: string[];
   examples: string[];
+  validItems: string[];
+  invalidItems: string[];
 };
 
 export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
@@ -25,6 +27,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Restaurant or food merchant name", "Bill/payment date and time", "Total amount", "Payment reference"],
     warnings: ["Use the actual food bill or payment proof. Do not auto-generate menu items that are not on the receipt."],
     examples: ["Meals", "Snacks", "Beverages", "Restaurant bill"],
+    validItems: ["Meals", "Groceries", "Snacks", "Non-alcoholic beverages", "Restaurant orders", "Food delivery"],
+    invalidItems: ["Beer", "Wine", "Whisky", "Vodka", "Rum", "Cocktails", "Spirits", "Liquor", "Alcoholic drinks"],
   },
   business_travel: {
     label: "Business Travel",
@@ -37,6 +41,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Travel operator or hotel name", "Trip/stay date", "Booking or transaction reference", "Business purpose if required by policy"],
     warnings: ["Flight, train, cab and hotel GST can vary. Verify against the original tax invoice before claiming input tax."],
     examples: ["Flight", "Train", "Cab", "Hotel stay"],
+    validItems: ["Flight tickets", "Train tickets", "Hotel stays", "Cab/taxi for business travel", "Business lodging"],
+    invalidItems: ["Personal travel bookings", "Leisure packages", "Vacation tours", "Personal cab rides"],
   },
   phone_internet: {
     label: "Phone / Internet",
@@ -49,6 +55,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Provider name", "Billing period", "Mobile/account number if policy requires it", "Payment reference"],
     warnings: ["Monthly telecom invoices usually show 18% GST. Match the amount against the provider invoice."],
     examples: ["Mobile bill", "Broadband bill", "Data recharge"],
+    validItems: ["Prepaid recharge", "Postpaid mobile bill", "Broadband bill", "Internet/ISP bill", "WiFi subscription", "Data pack"],
+    invalidItems: ["Phone handset purchase", "Earphones", "Phone accessories", "Electronic gadgets"],
   },
   education: {
     label: "Education",
@@ -61,6 +69,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Institution or platform name", "Course/program name", "Fee receipt date", "Payment reference"],
     warnings: ["Taxability differs by course/provider. Use the tax shown on the original receipt when available."],
     examples: ["Tuition fee", "Online course", "Certification fee"],
+    validItems: ["School tuition fees", "College fees", "Coaching class fees", "Education institution fees", "Tuition class fees"],
+    invalidItems: ["Stationery", "School supplies", "Uniform purchases", "Electronics for school"],
   },
   health_and_fitness: {
     label: "Health & Fitness",
@@ -72,7 +82,9 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     aliases: ["cult", "fitpass", "healthify", "practo", "apollo", "1mg", "gym", "fitness", "wellness", "health check"],
     evidence: ["Gym/clinic/provider name", "Service period or visit date", "Receipt or invoice number", "Payment reference"],
     warnings: ["Medical, gym and wellness services can have different tax treatment. Check the original bill."],
-    examples: ["Gym membership", "Health checkup", "Wellness program"],
+    examples: ["Gym membership", "Fitness subscription", "Sports activity"],
+    validItems: ["Gym membership", "Fitness subscription", "Badminton court booking", "Swimming", "Tennis", "Cricket", "Yoga classes", "Fitness classes"],
+    invalidItems: ["Medicines", "Medical equipment", "Health checkups", "Doctor consultations", "Hospital bills", "Physiotherapy", "Diagnostic tests", "Pharmacy purchases"],
   },
   fuel: {
     label: "Fuel",
@@ -85,6 +97,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Fuel station name", "Date and time", "Fuel amount", "Payment reference"],
     warnings: ["Petrol/diesel are outside GST. The statement should show zero GST unless the original receipt says otherwise."],
     examples: ["Petrol", "Diesel", "CNG"],
+    validItems: ["Petrol", "Diesel", "CNG", "Fuel for vehicle"],
+    invalidItems: ["Lubricants", "Car wash", "Vehicle accessories", "Convenience store items", "Air freshener", "Windshield fluid"],
   },
   hostel: {
     label: "Hostel",
@@ -97,6 +111,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Hostel/property name", "Stay or fee period", "Receipt number", "Payment reference"],
     warnings: ["Accommodation GST depends on provider and tariff. Confirm against the original receipt."],
     examples: ["Hostel fee", "Accommodation charges", "Mess and stay charges"],
+    validItems: ["Hostel fees", "PG accommodation rent", "Mess charges", "Dormitory charges"],
+    invalidItems: ["General apartment rent", "Home utility bills", "House maintenance", "Furniture purchase"],
   },
   drivers_salary: {
     label: "Driver's Salary",
@@ -109,6 +125,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Driver name", "Salary month", "Payment date", "Bank/UPI reference"],
     warnings: ["Salary reimbursement usually needs identity/payment proof rather than GST tax calculation."],
     examples: ["Monthly driver salary", "Driver allowance"],
+    validItems: ["Monthly driver salary", "Driver wages", "Personal driver payment"],
+    invalidItems: ["Cab service bills", "Taxi fare", "Ola/Uber ride", "Ride-hailing app charges"],
   },
   books: {
     label: "Books",
@@ -121,6 +139,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Seller name", "Book/material title if available", "Purchase date", "Payment reference"],
     warnings: ["Printed books are generally zero-rated, while digital subscriptions may be taxed differently."],
     examples: ["Printed books", "Periodicals", "Study material"],
+    validItems: ["Books", "Magazines", "Newspapers", "Journals", "E-book subscriptions", "Periodical subscriptions"],
+    invalidItems: ["Stationery", "Pens", "Notebooks", "Office supplies", "Electronics", "Laptop"],
   },
   professional_development: {
     label: "Professional Development",
@@ -133,6 +153,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Provider name", "Course/event name", "Completion or registration receipt", "Payment reference"],
     warnings: ["Keep proof that the course/event is work-relevant if your company policy asks for it."],
     examples: ["Workshop", "Conference", "Certification", "Training"],
+    validItems: ["Course fees", "Certification fees", "Training program", "Workshop fees", "Conference registration", "Skill development program"],
+    invalidItems: ["Netflix subscription", "Spotify subscription", "Gaming subscription", "General entertainment"],
   },
   uniform: {
     label: "Uniform",
@@ -145,6 +167,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Seller name", "Uniform item description", "Purchase date", "Payment reference"],
     warnings: ["Clothing GST can vary by item value and type. Use the original bill tax split when present."],
     examples: ["Uniform shirt", "Uniform trousers", "Safety shoes"],
+    validItems: ["Apparel", "Clothing", "Footwear", "Garments", "Uniform shirt", "Trousers", "Safety shoes", "Workwear"],
+    invalidItems: [],
   },
   gift: {
     label: "Gift",
@@ -157,6 +181,8 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     evidence: ["Seller name", "Gift description", "Recipient or occasion if policy requires it", "Payment reference"],
     warnings: ["Gift reimbursements often have strict caps and taxability rules. Check your company policy."],
     examples: ["Festival gift", "Corporate gift", "Gift voucher"],
+    validItems: ["Gift items", "Gift hamper", "Gift voucher", "Festival gift", "Corporate gift"],
+    invalidItems: ["Personal regular shopping", "Groceries", "Daily essentials", "Personal clothing"],
   },
   vehicle_maintenance: {
     label: "Vehicle Maintenance",
@@ -168,7 +194,9 @@ export const CATEGORY_RULES: Record<ClaimCategory, CategoryRule> = {
     aliases: ["gomechanic", "service center", "garage", "vehicle service", "car service", "bike service", "repair", "spare parts", "maintenance"],
     evidence: ["Garage/service center name", "Vehicle number if policy requires it", "Service date", "Payment reference"],
     warnings: ["Parts and services may have different GST rates. Match original invoice details where available."],
-    examples: ["Service labour", "Repair", "Spare parts", "Washing"],
+    examples: ["Service labour", "Repair", "Spare parts"],
+    validItems: ["Vehicle servicing", "Vehicle repair", "Spare parts", "Maintenance labour", "Oil change", "Tyre replacement"],
+    invalidItems: ["Fuel", "Car wash", "Vehicle accessories", "Seat covers", "Music system", "Modifications"],
   },
 };
 
